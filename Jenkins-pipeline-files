@@ -251,3 +251,68 @@ pipeline {
         }
     }
 }
+
+===============================================================================================================
+pipeline {
+    agent any
+
+    triggers {
+        pollSCM('H/2 * * * *')
+    }
+
+    stages {
+
+        stage('Clone Code') {
+            steps {
+                git branch: 'main', url: 'https://github.com/Swapgit92/maven-git-demo.git'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                sh '''
+                export MAVEN_HOME=/home/oracle/tools/maven/apache-maven-3.9.12
+                export PATH=$MAVEN_HOME/bin:$PATH
+
+                cd GRRAS
+                mvn clean install
+                '''
+            }
+        }
+
+        stage('Trivy Scan') {
+            steps {
+                sh '''
+                trivy fs --severity HIGH,CRITICAL GRRAS
+                '''
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                sh '''
+                rm -rf /home/oracle/tools/apache-tomcat-9.0.115/webapps/GRRAS*
+                cp GRRAS/target/*.war /home/oracle/tools/apache-tomcat-9.0.115/webapps/
+                '''
+            }
+        }
+    }
+
+    post {
+
+        success {
+            slackSend(
+                channel: '#jenkins-alerts',
+                color: 'good',
+                message: """
+SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}
+
+Application deployed successfully.
+
+Build URL:
+${env.BUILD_URL}
+"""
+            )
+        }
+    }
+}
