@@ -316,3 +316,49 @@ ${env.BUILD_URL}
         }
     }
 }
+===============================================================================================
+
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = "netflix-app"
+        IMAGE_TAG  = "latest"
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                git branch: 'main',
+                    url: 'https://github.com/your-repo.git'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh '''
+                docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                '''
+            }
+        }
+
+        stage('Verify Image') {
+            steps {
+                sh '''
+                docker images | grep ${IMAGE_NAME}
+                '''
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Docker image created successfully'
+        }
+
+        failure {
+            echo 'Docker image build failed'
+        }
+    }
+}
